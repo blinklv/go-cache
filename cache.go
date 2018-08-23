@@ -53,24 +53,24 @@ func (c *Cache) Set(k string, v interface{}) {
 
 // Add an element to the cache. If the element has already existed, return an error.
 // If the expiration is zero, the effect is same as using Add method. Otherwise the
-// element won't be got when it has been expired.
+// element won't be got when it has expired.
 func (c *Cache) EAdd(k string, v interface{}) error {
 	return nil
 }
 
 // Add an element to the cache with an expiration. If the element has already existed,
 // replacing it. If the expiration is zero, the effect is same as using Set method.
-// Otherwise the element won't be got when it has been expired.
+// Otherwise the element won't be got when it has expired.
 func (c *Cache) ESet(k string, v interface{}, d time.Duration) {
 }
 
 // Get an element from the cache. Return nil if this element doesn't exist or has
-// already been expired.
+// already expired.
 func (c *Cache) Get(k string) interface{} {
 	return nil
 }
 
-// Check whether an element exists. If it exists, return true. Otherwise, return false.
+// Check whether an element exists. If it exists, returns true. Otherwise, returns false.
 func (c *Cache) Exist(k string) bool {
 	return true
 }
@@ -84,6 +84,18 @@ func (c *Cache) Del(k string) {
 // this cache anymore after this method has been called.
 func (c *Cache) Close() error {
 	return nil
+}
+
+type element struct {
+	data       interface{}
+	expiration int64
+}
+
+// If an element has expired, returns true. Otherwise, returns false. It also
+// returns false directly if the expiration field is zero, which means this
+// element has unlimited life.
+func (e element) expired() bool {
+	return e.expiration != 0 && time.Now().UnixNano() > e.expiration
 }
 
 const (
