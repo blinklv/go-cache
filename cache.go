@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-08-22
+// Last Change: 2018-08-23
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -42,6 +42,7 @@ func New(cfg *Config) (*Cache, error) {
 	return nil, nil
 }
 
+// Add an element to the cache. If the element has already existed, return an error.
 func (c *Cache) Add(k string, v interface{}) error {
 	return nil
 }
@@ -50,6 +51,9 @@ func (c *Cache) Add(k string, v interface{}) error {
 func (c *Cache) Set(k string, v interface{}) {
 }
 
+// Add an element to the cache. If the element has already existed, return an error.
+// If the expiration is zero, the effect is same as using Add method. Otherwise the
+// element won't be got when it has been expired.
 func (c *Cache) EAdd(k string, v interface{}) error {
 	return nil
 }
@@ -60,17 +64,24 @@ func (c *Cache) EAdd(k string, v interface{}) error {
 func (c *Cache) ESet(k string, v interface{}, d time.Duration) {
 }
 
+// Get an element from the cache. Return nil if this element doesn't exist or has
+// already been expired.
 func (c *Cache) Get(k string) interface{} {
 	return nil
 }
 
+// Check whether an element exists. If it exists, return true. Otherwise, return false.
 func (c *Cache) Exist(k string) bool {
 	return true
 }
 
+// Delete an element from the cache. If the Finalizer field of the cache has been set,
+// it will be applied for the element.
 func (c *Cache) Del(k string) {
 }
 
+// Close the cache. It will release all resources in the cache. You shouldn't use
+// this cache anymore after this method has been called.
 func (c *Cache) Close() error {
 	return nil
 }
