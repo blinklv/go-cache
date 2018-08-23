@@ -12,6 +12,7 @@
 package cache
 
 import (
+	"sync"
 	"time"
 )
 
@@ -84,6 +85,13 @@ func (c *Cache) Del(k string) {
 // this cache anymore after this method has been called.
 func (c *Cache) Close() error {
 	return nil
+}
+
+// A shard contains a part of elements of the entire cache.
+type shard struct {
+	sync.RWMutex
+	elements  map[string]element
+	finalizer func(string, interface{})
 }
 
 type element struct {
