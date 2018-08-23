@@ -85,3 +85,18 @@ func (c *Cache) Del(k string) {
 func (c *Cache) Close() error {
 	return nil
 }
+
+const (
+	offset32 = 0x811c9dc5
+	prime32  = 0x1000193
+)
+
+// Takes a string and return a 32 bit FNV-1a. This function makes no memory allocations.
+func fnv32a(s string) uint32 {
+	var h uint32 = offset32
+	for i := 0; i < len(s); i++ {
+		h ^= uint32(s[i])
+		h *= prime32
+	}
+	return h
+}
