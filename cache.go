@@ -106,6 +106,77 @@ func (e element) expired() bool {
 	return e.expiration != 0 && time.Now().UnixNano() > e.expiration
 }
 
+// A queue which contains indices.
+type queue struct {
+	sync.Mutex
+	top, tail *block
+}
+
+func (q *queue) push(i index) {
+	q.Lock()
+	q._push(i)
+	q.Unlock()
+}
+
+// NOTE: We pop a block from the queue instead of an index.
+func (q *queue) pop() (b *block) {
+	q.Lock()
+	b = q._pop()
+	q.Unlock()
+	return
+}
+
+func (q *queue) _push(i index) {
+	// The queue is empty; we need to append a block to it. In this case,
+	// top and tail reference the same block.
+	if q.tail == nil {
+		q.tail = &block{}
+		q.top = q.tail
+	}
+
+	// The last block is full; we need to append a new block to the queue
+	// and update tail.
+	if len(q.tail.indices) == blockCapacity {
+		q.tail.next = &block{}
+		q.tail = q.tail.next
+	}
+
+	// Append an index to the last block.
+	q.tail.indices = append(q.tail.indices, i)
+}
+
+func (q *queue) _pop() (b *block) {
+	// We can classify problems into three cases:
+	//  1. There exist two blocks in the queue at least. We only need to
+	//     return the block referenced by top and update top.
+	//  2. There exist only one block in the queue. We need to return the
+	//     block referenced by top, then set top and tail to nil. Because
+	//     they reference to the same one in this case.
+	//  3. There's no block in the queue. Returns nil directly.
+	if q.top != q.tail {
+		b, q.top = q.top, q.top.next
+	} else if q.top != nil {
+		b, q.top, q.tail = q.top, nil, nil
+	}
+	return
+}
+
+// The maximal number of indices in one block.
+const blockCapacity = 32
+
+// block is the basic unit for cleaning out expired elements. Multiple indices are
+// stored in a common block and multiple blocks are organized in linked-list format.
+type block struct {
+	indices []index
+	next    *block
+}
+
+// We only build an index for an element which expiration field is not zero.
+type index struct {
+	key        string
+	expiration int64
+}
+
 const (
 	offset32 = 0x811c9dc5
 	prime32  = 0x1000193
