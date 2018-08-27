@@ -133,6 +133,14 @@ func (s *shard) get(k string) interface{} {
 	return e.data
 }
 
+// Check whether an element exists.
+func (s *shard) exist(k string) bool {
+	s.RLock()
+	_, found := s.elements[k]
+	s.RUnlock()
+	return found
+}
+
 func (s *shard) _set(k string, v interface{}, d time.Duration) {
 	expiration := int64(0)
 	if d > 0 {
