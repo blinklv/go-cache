@@ -130,25 +130,10 @@ func (e element) expired() bool {
 
 // A queue which contains indices.
 type queue struct {
-	sync.Mutex
 	top, tail *block
 }
 
 func (q *queue) push(i index) {
-	q.Lock()
-	q._push(i)
-	q.Unlock()
-}
-
-// NOTE: We pop a block from the queue instead of an index.
-func (q *queue) pop() (b *block) {
-	q.Lock()
-	b = q._pop()
-	q.Unlock()
-	return
-}
-
-func (q *queue) _push(i index) {
 	// The queue is empty; we need to append a block to it. In this case,
 	// top and tail reference the same block.
 	if q.tail == nil {
@@ -167,7 +152,8 @@ func (q *queue) _push(i index) {
 	q.tail.indices = append(q.tail.indices, i)
 }
 
-func (q *queue) _pop() (b *block) {
+// NOTE: We pop a black from the queue instead of an index.
+func (q *queue) pop() (b *block) {
 	// We can classify problems into three cases:
 	//  1. There exist two blocks in the queue at least. We only need to
 	//     return the block referenced by top and update top.
