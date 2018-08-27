@@ -120,6 +120,19 @@ func (s *shard) set(k string, v interface{}, d time.Duration) {
 	s.Unlock()
 }
 
+// Get an element from the shard. Return nil if this element doesn't exist or
+// has already expired.
+func (s *shard) get(k string) interface{} {
+	s.RLock()
+	e, found := s.elements[k]
+	s.RUnlock()
+
+	if !found || e.expired() {
+		return nil
+	}
+	return e.data
+}
+
 func (s *shard) _set(k string, v interface{}, d time.Duration) {
 	expiration := int64(0)
 	if d > 0 {
