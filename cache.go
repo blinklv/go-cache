@@ -120,6 +120,18 @@ func (s *shard) set(k string, v interface{}, d time.Duration) {
 	s.Unlock()
 }
 
+func (s *shard) _set(k string, v interface{}, d time.Duration) {
+	expiration := int64(0)
+	if d > 0 {
+		expiration = time.Now().Add(d).UnixNano()
+		// NOTE: If the element has existed, there might be multiple indices related
+		// to it in the queue. They have the same key but different expiration, but
+		// only one of which is valid.
+		s.q.push(index{k, expiration})
+	}
+	s.elements[k] = element{v, expiration}
+}
+
 // Get an element from the shard. Return nil if this element doesn't exist or
 // has already expired.
 func (s *shard) get(k string) interface{} {
@@ -154,18 +166,6 @@ func (s *shard) del(k string) {
 	if found && s.finalizer != nil {
 		s.finalizer(k, e.data)
 	}
-}
-
-func (s *shard) _set(k string, v interface{}, d time.Duration) {
-	expiration := int64(0)
-	if d > 0 {
-		expiration = time.Now().Add(d).UnixNano()
-		// NOTE: If the element has existed, there might be multiple indices related
-		// to it in the queue. They have the same key but different expiration, but
-		// only one of which is valid.
-		s.q.push(index{k, expiration})
-	}
-	s.elements[k] = element{v, expiration}
 }
 
 type element struct {
