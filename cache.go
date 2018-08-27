@@ -37,6 +37,10 @@ type Config struct {
 
 // Cache is a concurrent-safe cache for applications running on a single machine.
 type Cache struct {
+	shards   []*shard
+	n        uint32
+	interval time.Duration
+	exit     chan struct{}
 }
 
 // Create a Cache instance.
