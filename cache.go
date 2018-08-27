@@ -168,6 +168,52 @@ func (s *shard) del(k string) {
 	}
 }
 
+// Clean all expired elements in the shard.
+func (s *shard) clean() {
+	q := &queue{}
+	for b := s.pop(); b != nil; b = s.pop() {
+		for _, i := range b.indices {
+			expired := false
+
+			s.Lock()
+			e, found := s.elements[i.key]
+			// At first, we need to ensure that there exist an element related to
+			// this index. The following two cases will make the index invalid:
+			// 1. The element has already been deleted manually.
+			// 2. The index is dirty, which means the element has been updated. In
+			//    this case, their expirations are not equal.
+			if found && e.expiration == i.expiration {
+				// Then we check whether the element has expired. If it has, we remove
+				// it from the map. Otherwise, we must save the index to the temporary
+				// queue, which for the next clean.
+				if expired = e.expired(); expired {
+					delete(s.elements, i.key)
+				} else {
+					q.push(i)
+				}
+			}
+			s.Unlock()
+
+			// We don't know how many time the following statement will cost, it may
+			// take a lot of time. so I don't place it into the above critical region.
+			if expired && s.finalizer != nil {
+				s.finalizer(i.key, e.data)
+			}
+		}
+	}
+
+	s.Lock()
+	s.q = q
+	s.Unlock()
+}
+
+func (s *shard) pop() (b *block) {
+	s.Lock()
+	b = s.q.pop()
+	s.Unlock()
+	return
+}
+
 type element struct {
 	data       interface{}
 	expiration int64
