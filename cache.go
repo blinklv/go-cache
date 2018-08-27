@@ -141,6 +141,21 @@ func (s *shard) exist(k string) bool {
 	return found
 }
 
+// Delete an element from the shard. If the finalizer field of the shard has been set,
+// it will be applied for the element.
+func (s *shard) del(k string) {
+	s.Lock()
+	e, found := s.elements[k]
+	// NOTE: We don't need to remove the index (or indices) of this element
+	// from the queue at this point.
+	delete(s.elements, k)
+	s.Unlock()
+
+	if found && s.finalizer != nil {
+		s.finalizer(k, e.data)
+	}
+}
+
 func (s *shard) _set(k string, v interface{}, d time.Duration) {
 	expiration := int64(0)
 	if d > 0 {
