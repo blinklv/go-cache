@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-08-23
+// Last Change: 2018-08-27
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -92,6 +92,11 @@ type shard struct {
 	sync.RWMutex
 	elements  map[string]element
 	finalizer func(string, interface{})
+
+	// If we set the expiration for an element, the index of which will be
+	// saved in this queue. The primary objective of designing this field is
+	// iterating expired elements in an incremental way.
+	q *queue
 }
 
 type element struct {
