@@ -99,6 +99,23 @@ type shard struct {
 	q *queue
 }
 
+// Add an element to the shard. If the element has existed, replacing it. If the
+// duration is zero, which means this element never expires.
+func (s *shard) set(k string, v interface{}, d time.Duration) {
+	expiration := int64(0)
+	if d > 0 {
+		expiration = time.Now().Add(d).UnixNano()
+		// NOTE: If the element has existed, there might be multiple indices related
+		// to it in the queue. They have the same key but different expiration, but
+		// only one of which is valid.
+		s.q.push(index{k, expiration})
+	}
+
+	s.Lock()
+	s.elements[k] = element{v, expiration}
+	s.Unlock()
+}
+
 type element struct {
 	data       interface{}
 	expiration int64
