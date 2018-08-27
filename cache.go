@@ -35,6 +35,20 @@ type Config struct {
 	Finalizer func(string, interface{})
 }
 
+// Check whether the configuration is right.
+func (cfg *Config) validate() error {
+	if cfg.ShardNumber < 1 {
+		return fmt.Errorf("the number of shards (%d) can't be less than 1",
+			cfg.ShardNumber)
+	}
+
+	if cfg.CleanInterval < time.Minute {
+		return fmt.Errorf("the clean interval (%s) can't be less than 1 min",
+			cfg.CleanInterval)
+	}
+	return nil
+}
+
 // Cache is a concurrent-safe cache for applications running on a single machine.
 type Cache struct {
 	shards   []*shard
