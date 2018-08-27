@@ -12,6 +12,7 @@
 package cache
 
 import (
+	"fmt"
 	"sync"
 	"time"
 )
@@ -97,6 +98,18 @@ type shard struct {
 	// saved in this queue. The primary objective of designing this field is
 	// iterating expired elements in an incremental way.
 	q *queue
+}
+
+// Add an element to the shard. If the element has already existed, return an error.
+func (s *shard) add(k string, v interface{}, d time.Duration) error {
+	s.Lock()
+	defer s.Unlock()
+
+	if _, ok := s.elements[k]; ok {
+		return fmt.Errorf("element (%s) has already existed", k)
+	}
+	s._set(k, v, d)
+	return nil
 }
 
 // Add an element to the shard. If the element has existed, replacing it. If the
