@@ -101,8 +101,8 @@ func (c *Cache) Set(k string, v interface{}) {
 // Add an element to the cache. If the element has already existed, return an error.
 // If the expiration is zero, the effect is same as using Add method. Otherwise the
 // element won't be got when it has expired.
-func (c *Cache) EAdd(k string, v interface{}) error {
-	return nil
+func (c *Cache) EAdd(k string, v interface{}, d time.Duration) error {
+	return c.shards[fnv32a(k)&c.n].add(k, v, d)
 }
 
 // Add an element to the cache with an expiration. If the element has already existed,
