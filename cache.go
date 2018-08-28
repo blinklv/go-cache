@@ -109,22 +109,24 @@ func (c *Cache) EAdd(k string, v interface{}, d time.Duration) error {
 // replacing it. If the expiration is zero, the effect is same as using Set method.
 // Otherwise the element won't be got when it has expired.
 func (c *Cache) ESet(k string, v interface{}, d time.Duration) {
+	c.shards[fnv32a(k)&c.n].set(k, v, d)
 }
 
 // Get an element from the cache. Return nil if this element doesn't exist or has
 // already expired.
 func (c *Cache) Get(k string) interface{} {
-	return nil
+	return c.shards[fnv32a(k)&c.n].get(k)
 }
 
 // Check whether an element exists. If it exists, returns true. Otherwise, returns false.
 func (c *Cache) Exist(k string) bool {
-	return true
+	return c.shards[fnv32a(k)&c.n].exist(k)
 }
 
 // Delete an element from the cache. If the Finalizer field of the cache has been set,
 // it will be applied for the element.
 func (c *Cache) Del(k string) {
+	c.shards[fnv32a(k)&c.n].del(k)
 }
 
 // Close the cache. It will release all resources in the cache. You shouldn't use
