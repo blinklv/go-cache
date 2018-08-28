@@ -95,6 +95,7 @@ func (c *Cache) Add(k string, v interface{}) error {
 
 // Add an element to the cache. If the element has already existed, replacing it.
 func (c *Cache) Set(k string, v interface{}) {
+	c.shards[fnv32a(k)&c.n].set(k, v, 0)
 }
 
 // Add an element to the cache. If the element has already existed, return an error.
