@@ -135,6 +135,25 @@ func (c *Cache) Close() error {
 	return nil
 }
 
+// Clean expired elements in the cache periodically.
+func (c *Cache) clean() {
+	for {
+		select {
+		case <-time.After(c.interval):
+			// It's not all shards execute clean opearation simultaneously, but
+			// one by one. It's too waste time when a shard execute the clean
+			// method, if all shards do this at the same time, all user requests
+			// will be blocked. So I decide clean shards sequentially to reduce
+			// this effect.
+			for _, s := range c.shards {
+				s.clean()
+			}
+		case <-c.exit:
+			return
+		}
+	}
+}
+
 // A shard contains a part of elements of the entire cache.
 type shard struct {
 	sync.RWMutex
