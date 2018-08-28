@@ -84,6 +84,7 @@ func New(cfg *Config) (*Cache, error) {
 			q:         &queue{},
 		}
 	}
+	go c.clean()
 
 	return nil, nil
 }
