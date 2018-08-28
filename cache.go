@@ -90,7 +90,7 @@ func New(cfg *Config) (*Cache, error) {
 
 // Add an element to the cache. If the element has already existed, return an error.
 func (c *Cache) Add(k string, v interface{}) error {
-	return nil
+	return c.shards[fnv32a(k)&c.n].add(k, v, 0)
 }
 
 // Add an element to the cache. If the element has already existed, replacing it.
