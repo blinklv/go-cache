@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-08-27
+// Last Change: 2018-08-28
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -57,8 +57,34 @@ type Cache struct {
 	exit     chan struct{}
 }
 
-// Create a Cache instance.
+// Create a Cache instance. The configuration parameter should be valid when it's not
+// nil; like the number of shards must be greater than or equal to 1 and the clean
+// interval can't be less than 1 minute. If it's nil, the underlying shard number and
+// clean interval will be set to 32 and 1 hour respectively by default.
 func New(cfg *Config) (*Cache, error) {
+	n, interval, finalizer := 32, time.Hour, (func(string, interface{}))(nil)
+	if cfg != nil {
+		if err := cfg.validate(); err != nil {
+			return nil, err
+		}
+		n, interval, finalizer = cfg.ShardNumber, cfg.CleanInterval, cfg.Finalizer
+	}
+
+	c := &Cache{
+		shards:   make([]*shard, n),
+		n:        uint32(n),
+		interval: interval,
+		exit:     make(chan struct{}),
+	}
+
+	for i, _ := range c.shards {
+		c.shards[i] = &shard{
+			elements:  make(map[string]element),
+			finalizer: finalizer,
+			q:         &queue{},
+		}
+	}
+
 	return nil, nil
 }
 
