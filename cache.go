@@ -133,6 +133,7 @@ func (c *Cache) Del(k string) {
 // Close the cache. It will release all resources in the cache. You shouldn't use
 // this cache anymore after this method has been called.
 func (c *Cache) Close() error {
+	close(c.exit)
 	return nil
 }
 
