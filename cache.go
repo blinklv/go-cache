@@ -297,13 +297,14 @@ func (e element) expired() bool {
 // A queue which contains indices.
 type queue struct {
 	top, tail *block
+	bn        int // blocks number.
 }
 
 func (q *queue) push(i index) {
 	// The queue is empty; we need to append a block to it. In this case,
 	// top and tail reference the same block.
 	if q.tail == nil {
-		q.tail = &block{}
+		q.tail, q.bn = &block{}, 1
 		q.top = q.tail
 	}
 
@@ -312,6 +313,7 @@ func (q *queue) push(i index) {
 	if len(q.tail.indices) == blockCapacity {
 		q.tail.next = &block{}
 		q.tail = q.tail.next
+		q.bn++
 	}
 
 	// Append an index to the last block.
@@ -327,10 +329,13 @@ func (q *queue) pop() (b *block) {
 	//     block referenced by top, then set top and tail to nil. Because
 	//     they reference to the same one in this case.
 	//  3. There's no block in the queue. Returns nil directly.
-	if q.top != q.tail {
-		b, q.top = q.top, q.top.next
-	} else if q.top != nil {
-		b, q.top, q.tail = q.top, nil, nil
+	if q.top != nil {
+		if q.top != q.tail {
+			b, q.top = q.top, q.top.next
+		} else {
+			b, q.top, q.tail = q.top, nil, nil
+		}
+		q.bn--
 	}
 	return
 }
