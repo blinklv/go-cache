@@ -31,9 +31,11 @@ func TestQueuePush(t *testing.T) {
 		for i := 0; i < e.n; i++ {
 			q.push(index{})
 		}
-		t.Logf("indices-number (%d) actual-blocks-number (%d) tail-size (%d)",
-			e.n, q._bn(), q._tailSize())
+		t.Logf("indices-number (%d) blocks-number (%d) actual-blocks-number (%d) tail-size (%d)",
+			q.size(), q.bn, q._bn(), q._tailSize())
+		assert.Equal(t, q.size(), e.n)
 		assert.Equal(t, q._bn(), (e.n+blockCapacity-1)/blockCapacity)
+		assert.Equal(t, q.bn, q._bn())
 		assert.Equal(t, q._tailSize(), e.n%blockCapacity)
 	}
 }
