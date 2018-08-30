@@ -340,6 +340,14 @@ func (q *queue) pop() (b *block) {
 	return
 }
 
+// Get the number of indices in the queue.
+func (q *queue) size() int {
+	if q.tail != nil {
+		return (q.bn-1)*blockCapacity + len(q.tail.indices)
+	}
+	return 0
+}
+
 // Compute the blocks number of the queue; it's only used in test now.
 func (q *queue) _bn() int {
 	bn := 0
