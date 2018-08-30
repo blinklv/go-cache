@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-08-28
+// Last Change: 2018-08-30
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -333,6 +333,23 @@ func (q *queue) pop() (b *block) {
 		b, q.top, q.tail = q.top, nil, nil
 	}
 	return
+}
+
+// Compute the blocks number of the queue; it's only used in test now.
+func (q *queue) _bn() int {
+	bn := 0
+	for top := q.top; top != nil; top = top.next {
+		bn++
+	}
+	return bn
+}
+
+// Get the number of indices in the tail block; it's only used in test now.
+func (q *queue) _tailSize() int {
+	if q.tail != nil {
+		return len(q.tail.indices)
+	}
+	return 0
 }
 
 // The maximal number of indices in one block.
