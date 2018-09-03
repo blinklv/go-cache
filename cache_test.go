@@ -3,12 +3,13 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-08-30
+// Last Change: 2018-09-03
 
 package cache
 
 import (
 	"github.com/bmizerany/assert"
+	"sync"
 	"testing"
 )
 
@@ -82,4 +83,46 @@ func TestQueuePop(t *testing.T) {
 			assert.Equal(t, e.nilNumber, 0)
 		}
 	}
+}
+
+type worker struct {
+	number int
+	cb     func(int) error
+}
+
+func (w *worker) run(wg *sync.WaitGroup) error {
+	defer wg.Done()
+	for i := 0; i < w.number; i++ {
+		if err := w.cb(i); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type workers struct {
+	wn     int
+	number int
+	cb     func(int) error
+
+	ws []*worker
+	wg *sync.WaitGroup
+}
+
+func (ws *workers) initialize() {
+	ws.ws = make([]*worker, ws.wn)
+	ws.wg = &sync.WaitGroup{}
+
+	for i := 0; i < ws.wn; i++ {
+		ws.ws[i] = &worker{ws.number, ws.cb}
+	}
+}
+
+func (ws *workers) run() {
+	for _, w := range ws.ws {
+		w := w
+		ws.wg.Add(1)
+		go w.run(ws.wg)
+	}
+	ws.wg.Wait()
 }
