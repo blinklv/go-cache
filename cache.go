@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-08-30
+// Last Change: 2018-09-03
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -168,14 +168,16 @@ type shard struct {
 	q *queue
 }
 
-// Add an element to the shard. If the element has already existed, return an error.
+// Add an element to the shard. If the element has already existed but not expired,
+// return an error.
 func (s *shard) add(k string, v interface{}, d time.Duration) error {
 	s.Lock()
 	defer s.Unlock()
 
-	if _, ok := s.elements[k]; ok {
+	if e, found := s.elements[k]; found && !e.expired() {
 		return fmt.Errorf("element (%s) has already existed", k)
 	}
+
 	s._set(k, v, d)
 	return nil
 }
