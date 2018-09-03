@@ -10,7 +10,9 @@ package cache
 import (
 	"github.com/bmizerany/assert"
 	"sync"
+	"sync/atomic"
 	"testing"
+	"time"
 )
 
 func TestQueuePush(t *testing.T) {
@@ -81,6 +83,71 @@ func TestQueuePop(t *testing.T) {
 			assert.Equal(t, q.bn, q._bn())
 			assert.Equal(t, q.bn, bn-e.popNumber)
 			assert.Equal(t, e.nilNumber, 0)
+		}
+	}
+}
+
+func TestShardAdd(t *testing.T) {
+	elements := []struct {
+		s        *shard
+		ws       *workers
+		keys     []string
+		lifetime time.Duration
+		interval time.Duration
+		total    int64
+		fail     int64
+	}{
+		{
+			s:    &shard{elements: make(map[string]element), q: &queue{}},
+			ws:   &workers{wn: 1, number: 256},
+			keys: []string{"foo", "bar", "hello", "world"},
+		},
+		{
+			s:    &shard{elements: make(map[string]element), q: &queue{}},
+			ws:   &workers{wn: 16, number: 256},
+			keys: []string{"foo", "bar", "hello", "world"},
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			ws:       &workers{wn: 16, number: 256},
+			keys:     []string{"foo", "bar", "hello", "world", "apple"},
+			lifetime: time.Second,
+			interval: 100 * time.Millisecond,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			ws:       &workers{wn: 32, number: 256},
+			keys:     []string{"foo", "bar", "hello", "world", "apple", "geek"},
+			lifetime: 500 * time.Millisecond,
+			interval: 50 * time.Millisecond,
+		},
+	}
+
+	for _, e := range elements {
+		e.ws.cb = func(i int) error {
+			if e.interval != 0 {
+				time.Sleep(e.interval)
+			}
+
+			atomic.AddInt64(&e.total, 1)
+			key := e.keys[i%len(e.keys)]
+			if e.s.add(key, key, e.lifetime) != nil {
+				atomic.AddInt64(&e.fail, 1)
+			}
+			return nil
+		}
+
+		e.ws.initialize()
+		e.ws.run()
+		t.Logf("total (%d) fail (%d)", e.total, e.fail)
+
+		if e.lifetime != 0 && e.interval != 0 {
+			success := (e.ws.number/int(e.lifetime/e.interval) + 1) * len(e.keys)
+			min, max := int(float64(success)*0.8), int(float64(success)*1.2)
+			assert.Equal(t, int(e.total-e.fail) >= min, true)
+			assert.Equal(t, int(e.total-e.fail) <= max, true)
+		} else {
+			assert.Equal(t, int(e.total-e.fail), len(e.keys))
 		}
 	}
 }
