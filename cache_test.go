@@ -141,11 +141,13 @@ func TestShardAdd(t *testing.T) {
 		e.ws.run()
 		t.Logf("total (%d) fail (%d)", e.total, e.fail)
 
+		assert.Equal(t, len(e.s.elements), len(e.keys))
 		if e.lifetime != 0 && e.interval != 0 {
 			success := (e.ws.number/int(e.lifetime/e.interval) + 1) * len(e.keys)
 			min, max := int(float64(success)*0.8), int(float64(success)*1.2)
 			assert.Equal(t, int(e.total-e.fail) >= min, true)
 			assert.Equal(t, int(e.total-e.fail) <= max, true)
+			assert.Equal(t, e.s.q.size(), int(e.total-e.fail))
 		} else {
 			assert.Equal(t, int(e.total-e.fail), len(e.keys))
 		}
