@@ -3,12 +3,14 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-03
+// Last Change: 2018-09-04
 
 package cache
 
 import (
+	"fmt"
 	"github.com/bmizerany/assert"
+	"math/rand"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -124,7 +126,7 @@ func TestShardAdd(t *testing.T) {
 	}
 
 	for _, e := range elements {
-		e.ws.cb = func(i int) error {
+		e.ws.cb = func(w *worker, i int) error {
 			if e.interval != 0 {
 				time.Sleep(e.interval)
 			}
@@ -154,15 +156,70 @@ func TestShardAdd(t *testing.T) {
 	}
 }
 
+func TestShardSet(t *testing.T) {
+	elements := []struct {
+		s          *shard
+		ws         *workers
+		bg         *boolgen
+		notExpired int64
+		expired    int64
+	}{
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 1, number: 256},
+			bg: newBoolgen(),
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 4, number: 1024},
+			bg: newBoolgen(),
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 32, number: 2048},
+			bg: newBoolgen(),
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 128, number: 8192},
+			bg: newBoolgen(),
+		},
+	}
+
+	for _, e := range elements {
+		e.ws.cb = func(w *worker, i int) error {
+			if e.bg.Bool() {
+				e.s.set(fmt.Sprintf("%d-%d", w.id, i), i, 0)
+				atomic.AddInt64(&e.notExpired, 1)
+			} else {
+				e.s.set(fmt.Sprintf("%d-%d", w.id, i), i, 30*time.Second)
+				atomic.AddInt64(&e.expired, 1)
+			}
+			return nil
+		}
+
+		e.ws.initialize()
+		e.ws.run()
+
+		actualNotExpired, actualExpired := len(e.s.elements)-e.s.q.size(), e.s.q.size()
+		t.Logf("not-expired/actual-not-expired (%d/%d) expired/actual-expired (%d/%d)",
+			e.notExpired, actualNotExpired, e.expired, actualExpired)
+
+		assert.Equal(t, actualNotExpired, int(e.notExpired))
+		assert.Equal(t, actualExpired, int(e.expired))
+	}
+}
+
 type worker struct {
+	id     int
 	number int
-	cb     func(int) error
+	cb     func(*worker, int) error
 }
 
 func (w *worker) run(wg *sync.WaitGroup) error {
 	defer wg.Done()
 	for i := 0; i < w.number; i++ {
-		if err := w.cb(i); err != nil {
+		if err := w.cb(w, i); err != nil {
 			return err
 		}
 	}
@@ -172,7 +229,7 @@ func (w *worker) run(wg *sync.WaitGroup) error {
 type workers struct {
 	wn     int
 	number int
-	cb     func(int) error
+	cb     func(*worker, int) error
 
 	ws []*worker
 	wg *sync.WaitGroup
@@ -183,7 +240,7 @@ func (ws *workers) initialize() {
 	ws.wg = &sync.WaitGroup{}
 
 	for i := 0; i < ws.wn; i++ {
-		ws.ws[i] = &worker{ws.number, ws.cb}
+		ws.ws[i] = &worker{i, ws.number, ws.cb}
 	}
 }
 
@@ -194,4 +251,28 @@ func (ws *workers) run() {
 		go w.run(ws.wg)
 	}
 	ws.wg.Wait()
+}
+
+// The original design of the following struct is from StackOverflow:
+// https://stackoverflow.com/questions/45030618/generate-a-random-bool-in-go?answertab=active#tab-top
+type boolgen struct {
+	src       rand.Source
+	cache     int64
+	remaining int
+}
+
+func newBoolgen() *boolgen {
+	return &boolgen{src: rand.NewSource(time.Now().UnixNano())}
+}
+
+func (b *boolgen) Bool() bool {
+	if b.remaining == 0 {
+		b.cache, b.remaining = b.src.Int63(), 63
+	}
+
+	result := b.cache&0x01 == 1
+	b.cache >>= 1
+	b.remaining--
+
+	return result
 }
