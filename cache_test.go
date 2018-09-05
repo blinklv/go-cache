@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-04
+// Last Change: 2018-09-05
 
 package cache
 
@@ -207,6 +207,78 @@ func TestShardSet(t *testing.T) {
 
 		assert.Equal(t, actualNotExpired, int(e.notExpired))
 		assert.Equal(t, actualExpired, int(e.expired))
+	}
+}
+
+func TestShardGet(t *testing.T) {
+	elements := []struct {
+		s        *shard
+		ws       *workers
+		n        int
+		fail     int64
+		lifetime time.Duration
+		interval time.Duration
+	}{
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 1, number: 256},
+			n:  128,
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 4, number: 512},
+			n:  256,
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 32, number: 1024},
+			n:  100,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			ws:       &workers{wn: 32, number: 1024},
+			n:        1024,
+			lifetime: 100 * time.Millisecond,
+			interval: 10 * time.Millisecond,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			ws:       &workers{wn: 32, number: 1024},
+			n:        330,
+			lifetime: 100 * time.Millisecond,
+			interval: 10 * time.Millisecond,
+		},
+	}
+
+	for _, e := range elements {
+		for i := 0; i < e.n; i++ {
+			k := fmt.Sprintf("%d", i)
+			assert.Equal(t, e.s.add(k, k, e.lifetime), nil)
+		}
+
+		e.ws.cb = func(w *worker, i int) error {
+			if e.interval != 0 {
+				time.Sleep(e.interval)
+			}
+
+			k := fmt.Sprintf("%d", i)
+			x := e.s.get(k)
+			if v, ok := x.(string); !ok || v != k {
+				atomic.AddInt64(&e.fail, 1)
+			}
+			return nil
+		}
+
+		e.ws.initialize()
+		e.ws.run()
+
+		total := e.ws.wn * e.ws.number
+		t.Logf("total (%d) fail (%d) success (%d)", total, e.fail, total-int(e.fail))
+		if e.lifetime == 0 {
+			assert.Equal(t, e.ws.number-int(e.fail)/e.ws.wn, e.n)
+		} else {
+			assert.Equal(t, e.ws.number-int(e.fail)/e.ws.wn < e.n, true)
+		}
 	}
 }
 
