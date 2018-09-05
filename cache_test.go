@@ -210,12 +210,13 @@ func TestShardSet(t *testing.T) {
 	}
 }
 
-func TestShardGet(t *testing.T) {
+func TestShardGetAndExist(t *testing.T) {
 	elements := []struct {
 		s        *shard
 		ws       *workers
 		n        int
-		fail     int64
+		getFail  int64
+		notExist int64
 		lifetime time.Duration
 		interval time.Duration
 	}{
@@ -264,8 +265,13 @@ func TestShardGet(t *testing.T) {
 			k := fmt.Sprintf("%d", i)
 			x := e.s.get(k)
 			if v, ok := x.(string); !ok || v != k {
-				atomic.AddInt64(&e.fail, 1)
+				atomic.AddInt64(&e.getFail, 1)
 			}
+
+			if !e.s.exist(k) {
+				atomic.AddInt64(&e.notExist, 1)
+			}
+
 			return nil
 		}
 
@@ -273,11 +279,14 @@ func TestShardGet(t *testing.T) {
 		e.ws.run()
 
 		total := e.ws.wn * e.ws.number
-		t.Logf("total (%d) fail (%d) success (%d)", total, e.fail, total-int(e.fail))
+		t.Logf("total (%d) get-fail/not-exist (%d/%d) success (%d)",
+			total, e.getFail, e.notExist, total-int(e.getFail))
+
+		assert.Equal(t, e.getFail, e.notExist)
 		if e.lifetime == 0 {
-			assert.Equal(t, e.ws.number-int(e.fail)/e.ws.wn, e.n)
+			assert.Equal(t, e.ws.number-int(e.getFail)/e.ws.wn, e.n)
 		} else {
-			assert.Equal(t, e.ws.number-int(e.fail)/e.ws.wn < e.n, true)
+			assert.Equal(t, e.ws.number-int(e.getFail)/e.ws.wn < e.n, true)
 		}
 	}
 }
