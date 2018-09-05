@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-03
+// Last Change: 2018-09-05
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -215,12 +215,13 @@ func (s *shard) get(k string) interface{} {
 	return e.data
 }
 
-// Check whether an element exists.
+// Check whether an element exists. Return true if the element exists and hasn't expired.
 func (s *shard) exist(k string) bool {
 	s.RLock()
-	_, found := s.elements[k]
+	e, found := s.elements[k]
 	s.RUnlock()
-	return found
+
+	return found && !e.expired()
 }
 
 // Delete an element from the shard. If the finalizer field of the shard has been set,
