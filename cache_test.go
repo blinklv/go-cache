@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-05
+// Last Change: 2018-09-11
 
 package cache
 
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/bmizerany/assert"
 	"math/rand"
+	"strconv"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -288,6 +289,72 @@ func TestShardGetAndExist(t *testing.T) {
 		} else {
 			assert.Equal(t, e.ws.number-int(e.getFail)/e.ws.wn < e.n, true)
 		}
+	}
+}
+
+func TestShardDel(t *testing.T) {
+	elements := []struct {
+		s  *shard
+		ws *workers
+		n  int
+	}{
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 1, number: 256},
+			n:  128,
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 4, number: 256},
+			n:  127,
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 16, number: 1024},
+			n:  512,
+		},
+		{
+			s:  &shard{elements: make(map[string]element), q: &queue{}},
+			ws: &workers{wn: 32, number: 512},
+			n:  1001,
+		},
+	}
+
+	for _, e := range elements {
+		for i := 0; i < e.n; i++ {
+			k := fmt.Sprintf("%d", i)
+			assert.Equal(t, e.s.add(k, k, 0), nil)
+		}
+
+		var dn, fn, en int64
+
+		e.s.finalizer = func(k string, v interface{}) {
+			ki, _ := strconv.Atoi(k)
+			vi, _ := strconv.Atoi(v.(string))
+			if ki == vi && ki%2 == 1 {
+				atomic.AddInt64(&fn, 1)
+			}
+		}
+
+		e.ws.cb = func(w *worker, i int) error {
+			if i%2 == 1 {
+				e.s.del(fmt.Sprintf("%d", i))
+				atomic.AddInt64(&dn, 1)
+			}
+			return nil
+		}
+
+		e.ws.initialize()
+		e.ws.run()
+
+		for i := 0; i < e.n; i++ {
+			if e.s.exist(fmt.Sprintf("%d", i)) {
+				en++
+			}
+		}
+
+		t.Logf("rest (%d) delete (%d) finalize (%d)", en, dn, fn)
+		assert.Equal(t, int(en+fn), e.n)
 	}
 }
 
