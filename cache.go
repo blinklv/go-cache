@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-05
+// Last Change: 2018-09-12
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -239,9 +239,11 @@ func (s *shard) del(k string) {
 	}
 }
 
-// Clean all expired elements in the shard.
-func (s *shard) clean() {
-	q := &queue{}
+// Clean all expired elements in the shard, return the number of elements cleaned
+// in this process. NOTE: You can't run this method of a shard instance many times
+// at the same time.
+func (s *shard) clean() int {
+	q, n := &queue{}, 0
 	for b := s.pop(); b != nil; b = s.pop() {
 		for _, i := range b.indices {
 			expired := false
@@ -259,6 +261,7 @@ func (s *shard) clean() {
 				// queue, which for the next clean.
 				if expired = e.expired(); expired {
 					delete(s.elements, i.key)
+					n++
 				} else {
 					q.push(i)
 				}
@@ -276,6 +279,8 @@ func (s *shard) clean() {
 	s.Lock()
 	s.q = q
 	s.Unlock()
+
+	return n
 }
 
 func (s *shard) pop() (b *block) {
