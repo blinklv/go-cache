@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-11
+// Last Change: 2018-09-12
 
 package cache
 
@@ -355,6 +355,65 @@ func TestShardDel(t *testing.T) {
 
 		t.Logf("rest (%d) delete (%d) finalize (%d)", en, dn, fn)
 		assert.Equal(t, int(en+fn), e.n)
+	}
+}
+
+func TestShardClean(t *testing.T) {
+	elements := []struct {
+		s        *shard
+		parts    int
+		n        int
+		lifetime time.Duration
+	}{
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			parts:    4,
+			n:        1024,
+			lifetime: 2 * time.Second,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			parts:    8,
+			n:        512,
+			lifetime: 2 * time.Second,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			parts:    16,
+			n:        2048,
+			lifetime: 5 * time.Second,
+		},
+	}
+
+	for _, e := range elements {
+		for part := 0; part < e.parts; part++ {
+			for beg, end := part*e.n, (part+1)*e.n; beg < end; beg++ {
+				k := fmt.Sprintf("%d", beg)
+				e.s.add(k, beg, time.Duration(part)*e.lifetime)
+				e.s.set(k, beg, time.Duration(part)*e.lifetime)
+			}
+		}
+
+		assert.Equal(t, e.s.q.size(), 2*(len(e.s.elements)-e.n))
+
+		for part := 1; part < e.parts; part++ {
+			time.Sleep(e.lifetime)
+			cleaned := e.s.clean()
+
+			t.Logf("rest (%d) indices (%d) cleaned (%d)",
+				len(e.s.elements), e.s.q.size(), cleaned)
+
+			assert.Equal(t, cleaned, e.n)
+			assert.Equal(t, e.s.q.size(), len(e.s.elements)-e.n)
+			assert.Equal(t, len(e.s.elements), (e.parts-part)*e.n)
+		}
+
+		for part := 0; part < e.parts; part++ {
+			for beg, end := part*e.n, (part+1)*e.n; beg < end; beg++ {
+				k := fmt.Sprintf("%d", beg)
+				assert.Equal(t, part == 0 && e.s.exist(k) || part != 0 && !e.s.exist(k), true)
+			}
+		}
 	}
 }
 
