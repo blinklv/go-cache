@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-12
+// Last Change: 2018-09-14
 
 package cache
 
@@ -414,6 +414,55 @@ func TestShardClean(t *testing.T) {
 				assert.Equal(t, part == 0 && e.s.exist(k) || part != 0 && !e.s.exist(k), true)
 			}
 		}
+	}
+}
+
+func TestShardClose(t *testing.T) {
+	elements := []struct {
+		s        *shard
+		n        int
+		lifetime time.Duration
+	}{
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			n:        1024,
+			lifetime: time.Minute,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			n:        2048,
+			lifetime: time.Minute,
+		},
+		{
+			s:        &shard{elements: make(map[string]element), q: &queue{}},
+			n:        4096,
+			lifetime: 0,
+		},
+	}
+
+	for _, e := range elements {
+		for i := 0; i < e.n; i++ {
+			e.s.set(fmt.Sprintf("%d", i), i, e.lifetime)
+		}
+
+		size, qsize := len(e.s.elements), e.s.q.size()
+		assert.Equal(t, len(e.s.elements), e.n)
+		if e.lifetime != 0 {
+			assert.Equal(t, e.s.q.size(), e.n)
+		}
+
+		fn := 0
+		e.s.finalizer = func(k string, v interface{}) {
+			fn++
+		}
+
+		e.s.close()
+
+		t.Logf("size/original-size (%d/%d) queue-size/original-queue-size (%d/%d) finalize-count (%d)",
+			size, len(e.s.elements), qsize, e.s.q.size(), fn)
+		assert.Equal(t, fn, e.n)
+		assert.Equal(t, len(e.s.elements), 0)
+		assert.Equal(t, e.s.q.size(), 0)
 	}
 }
 
