@@ -3,12 +3,12 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-12
+// Last Change: 2018-09-14
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
 // distributed in many separate regions, which called shard. This design allows us
-// to perform some massive operations (like cleaning expired elements) step by step.
+// to perform some massive operations (like cleaning expired elements) progressively.
 package cache
 
 import (
@@ -25,7 +25,8 @@ type Config struct {
 	ShardNumber int
 
 	// Cache will clean expired elements periodically, this parameter controls
-	// the frequency of cleaning operations.
+	// the frequency of cleaning operations. It can't be less than 1 min in this
+	// version; otherwise, many CPU cycles are occupied by the 'clean' task.
 	CleanInterval time.Duration
 
 	// When an element is out of date, it will be cleand sliently. But maybe an
@@ -35,7 +36,7 @@ type Config struct {
 	Finalizer func(string, interface{})
 }
 
-// Check whether the configuration is right.
+// Check whether the configuration is right. If it's invalid, return an error.
 func (cfg *Config) validate() error {
 	if cfg.ShardNumber < 1 {
 		return fmt.Errorf("the number of shards (%d) can't be less than 1",
