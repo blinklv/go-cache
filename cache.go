@@ -131,8 +131,9 @@ func (c *Cache) Del(k string) {
 	c.shards[fnv32a(k)&c.n].del(k)
 }
 
-// Close the cache. It will release all resources in the cache. You shouldn't use
-// this cache anymore after this method has been called.
+// Close the cache. All elements in the cache will be deleted. If the Finalizer field
+// of the cache has been set, it will be applied for the all elements in the cache. You
+// shouldn't use this cache anymore after this method has been called.
 func (c *Cache) Close() error {
 	close(c.exit)
 	return nil
@@ -152,6 +153,9 @@ func (c *Cache) clean() {
 				s.clean()
 			}
 		case <-c.exit:
+			for _, s := range c.shards {
+				s.close()
+			}
 			return
 		}
 	}
