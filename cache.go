@@ -291,6 +291,24 @@ func (s *shard) pop() (b *block) {
 	return
 }
 
+// Close the shard. In fact, the pratical effect of this operation is deleting all
+// elements in the shard. If the finalizer field is not nil, it will be applied for
+// each element.
+func (s *shard) close() {
+	s.Lock()
+	defer s.Unlock()
+
+	if s.finalizer != nil {
+		for k, e := range s.elements {
+			s.finalizer(k, e.data)
+		}
+	}
+
+	// NOTE: We just set 'elements' and 'queue' field to an empty variable instead
+	// of really deleting all items in them, GC will help us do this work.
+	s.elements, s.q = make(map[string]element), &queue{}
+}
+
 type element struct {
 	data       interface{}
 	expiration int64
