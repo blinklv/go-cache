@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-14
+// Last Change: 2018-09-17
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -36,16 +36,21 @@ type Config struct {
 	Finalizer func(string, interface{})
 }
 
+const (
+	minShardNumber   = 1
+	minCleanInterval = time.Minute
+)
+
 // Check whether the configuration is right. If it's invalid, return an error.
 func (cfg *Config) validate() error {
-	if cfg.ShardNumber < 1 {
-		return fmt.Errorf("the number of shards (%d) can't be less than 1",
-			cfg.ShardNumber)
+	if cfg.ShardNumber < minShardNumber {
+		return fmt.Errorf("the number of shards (%d) can't be less than %d",
+			cfg.ShardNumber, minShardNumber)
 	}
 
-	if cfg.CleanInterval < time.Minute {
-		return fmt.Errorf("the clean interval (%s) can't be less than 1 min",
-			cfg.CleanInterval)
+	if cfg.CleanInterval < minCleanInterval {
+		return fmt.Errorf("the clean interval (%s) can't be less than %s",
+			cfg.CleanInterval, minCleanInterval)
 	}
 	return nil
 }
