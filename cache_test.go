@@ -491,6 +491,60 @@ func TestConfigValidate(t *testing.T) {
 	}
 }
 
+func TestCacheNewAndClose(t *testing.T) {
+	finalizer := func(string, interface{}) {}
+	elements := []struct {
+		c  *Config
+		ok bool
+	}{
+		{nil, true},
+		{&Config{ShardNumber: 32, CleanInterval: 30 * time.Minute}, true},
+		{&Config{ShardNumber: minShardNumber, CleanInterval: 10 * time.Minute, Finalizer: finalizer}, true},
+		{&Config{ShardNumber: 16, CleanInterval: minCleanInterval}, true},
+		{&Config{ShardNumber: minShardNumber, CleanInterval: minCleanInterval, Finalizer: finalizer}, true},
+		{&Config{ShardNumber: 0, CleanInterval: 10 * time.Minute}, false},
+		{&Config{ShardNumber: 10, CleanInterval: 30 * time.Second}, false},
+		{&Config{ShardNumber: -1, CleanInterval: 30 * time.Second}, false},
+	}
+
+	for _, e := range elements {
+		c, err := New(e.c)
+		if e.ok {
+			if e.c == nil {
+				e.c = &Config{ShardNumber: 32, CleanInterval: time.Hour}
+			}
+
+			assert.T(t, c != nil)
+			assert.Equal(t, err, nil)
+			assert.Equal(t, int(c.n), e.c.ShardNumber)
+			assert.Equal(t, c.interval, e.c.CleanInterval)
+			assert.T(t, c.exit != nil)
+			assert.Equal(t, len(c.shards), e.c.ShardNumber)
+
+			for _, s := range c.shards {
+				assert.T(t, s != nil)
+				assert.Equal(t, s.finalizer == nil, e.c.Finalizer == nil)
+				s.set("hello", "world", time.Hour)
+				assert.Equal(t, len(s.elements), 1)
+				assert.Equal(t, s.q.size(), 1)
+			}
+
+			c.Close()
+
+			for _, s := range c.shards {
+				assert.T(t, s.elements != nil)
+				assert.T(t, s.q != nil)
+				assert.Equal(t, len(s.elements), 0)
+				assert.Equal(t, s.q.size(), 0)
+			}
+		} else {
+			t.Logf("new cache failed: %s", err)
+			assert.T(t, c == nil)
+			assert.NotEqual(t, err, nil)
+		}
+	}
+}
+
 type worker struct {
 	id     int
 	number int
