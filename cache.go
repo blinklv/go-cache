@@ -60,7 +60,7 @@ type Cache struct {
 	shards   []*shard
 	n        uint32
 	interval time.Duration
-	exit     chan struct{}
+	exit     chan chan struct{}
 }
 
 // Create a Cache instance. The configuration parameter should be valid when it's not
@@ -80,7 +80,7 @@ func New(cfg *Config) (*Cache, error) {
 		shards:   make([]*shard, n),
 		n:        uint32(n),
 		interval: interval,
-		exit:     make(chan struct{}),
+		exit:     make(chan chan struct{}),
 	}
 
 	for i, _ := range c.shards {
@@ -140,7 +140,9 @@ func (c *Cache) Del(k string) {
 // of the cache has been set, it will be applied for the all elements in the cache. You
 // shouldn't use this cache anymore after this method has been called.
 func (c *Cache) Close() error {
-	close(c.exit)
+	exitDone := make(chan struct{})
+	c.exit <- exitDone
+	<-exitDone
 	return nil
 }
 
@@ -157,10 +159,11 @@ func (c *Cache) clean() {
 			for _, s := range c.shards {
 				s.clean()
 			}
-		case <-c.exit:
+		case exitDone := <-c.exit:
 			for _, s := range c.shards {
 				s.close()
 			}
+			close(exitDone)
 			return
 		}
 	}
