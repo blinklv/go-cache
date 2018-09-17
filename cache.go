@@ -92,7 +92,7 @@ func New(cfg *Config) (*Cache, error) {
 	}
 	go c.clean()
 
-	return nil, nil
+	return c, nil
 }
 
 // Add an element to the cache. If the element has already existed, return an error.
