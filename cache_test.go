@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-14
+// Last Change: 2018-09-17
 
 package cache
 
@@ -463,6 +463,31 @@ func TestShardClose(t *testing.T) {
 		assert.Equal(t, fn, e.n)
 		assert.Equal(t, len(e.s.elements), 0)
 		assert.Equal(t, e.s.q.size(), 0)
+	}
+}
+
+func TestConfigValidate(t *testing.T) {
+	elements := []struct {
+		c  *Config
+		ok bool
+	}{
+		{&Config{ShardNumber: 32, CleanInterval: 30 * time.Minute}, true},
+		{&Config{ShardNumber: minShardNumber, CleanInterval: 30 * time.Minute}, true},
+		{&Config{ShardNumber: 32, CleanInterval: minCleanInterval}, true},
+		{&Config{ShardNumber: minShardNumber, CleanInterval: minCleanInterval}, true},
+		{&Config{ShardNumber: 0, CleanInterval: 10 * time.Minute}, false},
+		{&Config{ShardNumber: 10, CleanInterval: 30 * time.Second}, false},
+		{&Config{ShardNumber: -1, CleanInterval: 30 * time.Second}, false},
+	}
+
+	for _, e := range elements {
+		err := e.c.validate()
+		if !e.ok {
+			t.Logf("configuration is invalid: %s", err)
+			assert.NotEqual(t, err, nil)
+		} else {
+			assert.Equal(t, err, nil)
+		}
 	}
 }
 
