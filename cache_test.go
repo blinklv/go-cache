@@ -519,6 +519,7 @@ func TestCacheNewAndClose(t *testing.T) {
 			assert.Equal(t, int(c.n), e.c.ShardNumber)
 			assert.Equal(t, c.interval, e.c.CleanInterval)
 			assert.T(t, c.exit != nil)
+			assert.T(t, c.exitOnce != nil)
 			assert.Equal(t, len(c.shards), e.c.ShardNumber)
 
 			for _, s := range c.shards {
