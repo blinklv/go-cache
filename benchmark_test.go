@@ -14,43 +14,59 @@ import (
 	"time"
 )
 
-func BenchmarkCacheSet(b *testing.B) {
-	keyLengths := []int{16}
-	valueSizes := []int{2048}
+// Perform performance tests for all cache's write operations: Add, Set, EAdd, ESet.
+func BenchmarkCacheWrite(b *testing.B) {
+	ops := []string{"add", "set", "expire-add", "expire-set"}
 	shardNumbers := []int{1, 4, 16, 32, 64, 128, 256, 512, 1024}
-
-	for _, keyLength := range keyLengths {
-		for _, valueSize := range valueSizes {
-			for _, shardNumber := range shardNumbers {
-				desc := fmt.Sprintf("key-length(%d) value-size(%d) shard-number(%d)",
-					keyLength, valueSize, shardNumber)
-				b.Run(desc, benchmarkCacheSet(map[string]interface{}{
-					"key-length":   keyLength,
-					"value-size":   valueSize,
-					"shard-number": shardNumber,
-				}))
-			}
+	for _, op := range ops {
+		for _, shardNumber := range shardNumbers {
+			desc := fmt.Sprintf("operation(%s) shard-number(%d)", op, shardNumber)
+			b.Run(desc, benchmarkCacheWrite(map[string]interface{}{
+				"op":           op,
+				"shard-number": shardNumber,
+			}))
 		}
 	}
 }
 
-func benchmarkCacheSet(m map[string]interface{}) func(*testing.B) {
+func benchmarkCacheWrite(m map[string]interface{}) func(*testing.B) {
 	return func(b *testing.B) {
 		c, _ := New(&Config{
 			ShardNumber:   m["shard-number"].(int),
 			CleanInterval: time.Hour,
 		})
-		val := make([]byte, m["value-size"].(int))
-		keyLength := m["key-length"].(int)
+		val := make([]byte, 2048)
 
 		b.StartTimer()
-		b.RunParallel(func(pb *testing.PB) {
-			for pb.Next() {
-				c.Set(getStr(keyLength), val)
-			}
-		})
+		switch m["op"] {
+		case "add":
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					c.Add(getStr(16), val)
+				}
+			})
+		case "expire-add":
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					c.EAdd(getStr(16), val, time.Hour)
+				}
+			})
+		case "set":
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					c.Set(getStr(16), val)
+				}
+			})
+		case "expire-set":
+			b.RunParallel(func(pb *testing.PB) {
+				for pb.Next() {
+					c.ESet(getStr(16), val, time.Hour)
+				}
+			})
+		}
 		b.StopTimer()
 		c.Close()
+
 	}
 }
 
