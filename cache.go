@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-17
+// Last Change: 2018-09-27
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -99,43 +99,43 @@ func New(cfg *Config) (*Cache, error) {
 
 // Add an element to the cache. If the element has already existed, return an error.
 func (c *Cache) Add(k string, v interface{}) error {
-	return c.shards[fnv32a(k)&c.n].add(k, v, 0)
+	return c.shards[fnv32a(k)%c.n].add(k, v, 0)
 }
 
 // Add an element to the cache. If the element has already existed, replacing it.
 func (c *Cache) Set(k string, v interface{}) {
-	c.shards[fnv32a(k)&c.n].set(k, v, 0)
+	c.shards[fnv32a(k)%c.n].set(k, v, 0)
 }
 
 // Add an element to the cache. If the element has already existed, return an error.
 // If the expiration is zero, the effect is same as using Add method. Otherwise the
 // element won't be got when it has expired.
 func (c *Cache) EAdd(k string, v interface{}, d time.Duration) error {
-	return c.shards[fnv32a(k)&c.n].add(k, v, d)
+	return c.shards[fnv32a(k)%c.n].add(k, v, d)
 }
 
 // Add an element to the cache with an expiration. If the element has already existed,
 // replacing it. If the expiration is zero, the effect is same as using Set method.
 // Otherwise the element won't be got when it has expired.
 func (c *Cache) ESet(k string, v interface{}, d time.Duration) {
-	c.shards[fnv32a(k)&c.n].set(k, v, d)
+	c.shards[fnv32a(k)%c.n].set(k, v, d)
 }
 
 // Get an element from the cache. Return nil if this element doesn't exist or has
 // already expired.
 func (c *Cache) Get(k string) interface{} {
-	return c.shards[fnv32a(k)&c.n].get(k)
+	return c.shards[fnv32a(k)%c.n].get(k)
 }
 
 // Check whether an element exists. If it exists, returns true. Otherwise, returns false.
 func (c *Cache) Exist(k string) bool {
-	return c.shards[fnv32a(k)&c.n].exist(k)
+	return c.shards[fnv32a(k)%c.n].exist(k)
 }
 
 // Delete an element from the cache. If the Finalizer field of the cache has been set,
 // it will be applied for the element.
 func (c *Cache) Del(k string) {
-	c.shards[fnv32a(k)&c.n].del(k)
+	c.shards[fnv32a(k)%c.n].del(k)
 }
 
 // Close the cache. All elements in the cache will be deleted. If the Finalizer field
