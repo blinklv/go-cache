@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-27
+// Last Change: 2018-09-28
 
 package cache
 
@@ -630,6 +630,28 @@ func BenchmarkCacheWrite(b *testing.B) {
 	}
 }
 
+// Perform performance tests for all cache's read operation: Get, Exist, Del.
+// NOTE: Although Del method will delete an element from the cache, it will use
+// the key to retrieve it before removing it. So we think it's a read operation.
+func BenchmarkCacheRead(b *testing.B) {
+	ops := []string{"get", "exist", "del"}
+	shardNumbers := []int{32, 64}
+	quantities := []int{100000, 500000, 1000000}
+	for _, op := range ops {
+		for _, shardNumber := range shardNumbers {
+			for _, quantity := range quantities {
+				desc := fmt.Sprintf("operation(%s) shard-number(%d) quantity(%d)",
+					op, shardNumber, quantity)
+				b.Run(desc, benchmarkCacheRead(map[string]interface{}{
+					"op":           op,
+					"shard-number": shardNumber,
+					"quantity":     quantity,
+				}))
+			}
+		}
+	}
+}
+
 func benchmarkCacheWrite(m map[string]interface{}) func(*testing.B) {
 	return func(b *testing.B) {
 		c, _ := New(&Config{
@@ -668,6 +690,61 @@ func benchmarkCacheWrite(m map[string]interface{}) func(*testing.B) {
 		b.StopTimer()
 		c.Close()
 
+	}
+}
+
+func benchmarkCacheRead(m map[string]interface{}) func(*testing.B) {
+	return func(b *testing.B) {
+		c, _ := New(&Config{
+			ShardNumber:   m["shard-number"].(int),
+			CleanInterval: time.Hour,
+		})
+
+		var (
+			quantity = m["quantity"].(int)
+			n        = quantity / 100
+			keys     = make([]string, 0, n)
+			val      = make([]byte, 2048)
+		)
+
+		// Fill the cache.
+		for i := 0; i < quantity; i++ {
+			key := getStr(16)
+			c.Set(key, val)
+			if i%100 == 0 {
+				keys = append(keys, key)
+			}
+		}
+
+		b.StartTimer()
+		switch m["op"] {
+		case "get":
+			b.RunParallel(func(pb *testing.PB) {
+				i := 0
+				for pb.Next() {
+					c.Get(keys[i%n])
+					i++
+				}
+			})
+		case "exist":
+			b.RunParallel(func(pb *testing.PB) {
+				i := 0
+				for pb.Next() {
+					c.Exist(keys[i%n])
+					i++
+				}
+			})
+		case "del":
+			b.RunParallel(func(pb *testing.PB) {
+				i := 0
+				for pb.Next() {
+					c.Del(keys[i%n])
+					i++
+				}
+			})
+		}
+		b.StopTimer()
+		c.Close()
 	}
 }
 
