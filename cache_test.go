@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-28
+// Last Change: 2018-10-10
 
 package cache
 
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/bmizerany/assert"
 	"math/rand"
+	"runtime"
 	"strconv"
 	"sync"
 	"sync/atomic"
@@ -611,6 +612,61 @@ func (b *boolgen) Bool() bool {
 	b.remaining--
 
 	return result
+}
+
+// Memory Overhead Statistics
+func TestMemoryOverheadStats(t *testing.T) {
+	var (
+		shardNumbers = []int{1, 32, 256}
+		quantities   = []int{1000, 10 * 1000, 100 * 1000, 1000 * 1000}
+		valueSizes   = []int{32, 512, 2048, 8192}
+		expirations  = []time.Duration{0, time.Hour}
+	)
+
+	for _, expiration := range expirations {
+		for _, shardNumber := range shardNumbers {
+			for _, quantity := range quantities {
+				for _, valueSize := range valueSizes {
+					var (
+						c, _ = New(&Config{
+							ShardNumber:   shardNumber,
+							CleanInterval: time.Hour,
+						})
+						memStats runtime.MemStats
+					)
+
+					runtime.ReadMemStats(&memStats)
+					before := memStats.Alloc
+					for i := 0; i < quantity; i++ {
+						c.ESet(getStr(16), make([]byte, valueSize), expiration)
+					}
+					runtime.ReadMemStats(&memStats)
+					after := memStats.Alloc
+					c.Close()
+					runtime.GC() // NOTE: Can't skip this op.
+
+					total, payload := after-before, uint64(quantity*(16+valueSize))
+					t.Logf("expiration(%v) shard-number(%d) quantity(%d) value-size(%s) total(%s) payload(%s) overhead(%s) ratio(%.2f%%)\n",
+						expiration != 0, shardNumber, quantity, sizeReadable(uint64(valueSize)),
+						sizeReadable(total), sizeReadable(payload), sizeReadable(total-payload), float64(payload)/float64(total)*100,
+					)
+				}
+			}
+		}
+	}
+}
+
+func sizeReadable(b uint64) string {
+	const unit = 1024
+	if b < unit {
+		return fmt.Sprintf("%d B", b)
+	}
+	div, exp := uint64(unit), 0
+	for n := b / unit; n >= unit; n /= unit {
+		div *= unit
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(b)/float64(div), "KMGTPE"[exp])
 }
 
 // Benchmark
