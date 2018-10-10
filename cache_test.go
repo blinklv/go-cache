@@ -616,6 +616,10 @@ func (b *boolgen) Bool() bool {
 
 // Memory Overhead Statistics
 func TestMemoryOverheadStats(t *testing.T) {
+	if testing.Short() {
+		return
+	}
+
 	var (
 		shardNumbers = []int{1, 32, 256}
 		quantities   = []int{1000, 10 * 1000, 100 * 1000, 1000 * 1000}
