@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-09-27
+// Last Change: 2018-10-10
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -183,6 +183,15 @@ type shard struct {
 	// saved in this queue. The primary objective of designing this field is
 	// iterating expired elements in an incremental way.
 	q *queue
+}
+
+// Returns the number of elements in the shard. This may include expired elements
+// which have not yet been cleaned up.
+func (s *shard) size() (n int) {
+	s.RLock()
+	n = len(s.elements)
+	s.RUnlock()
+	return
 }
 
 // Add an element to the shard. If the element has already existed but not expired,
