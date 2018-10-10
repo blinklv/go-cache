@@ -145,7 +145,7 @@ func TestShardAdd(t *testing.T) {
 		e.ws.run()
 		t.Logf("total (%d) fail (%d)", e.total, e.fail)
 
-		assert.Equal(t, len(e.s.elements), len(e.keys))
+		assert.Equal(t, e.s.size(), len(e.keys))
 		if e.lifetime != 0 && e.interval != 0 {
 			success := (e.ws.number/int(e.lifetime/e.interval) + 1) * len(e.keys)
 			min, max := int(float64(success)*0.8), int(float64(success)*1.2)
@@ -203,7 +203,7 @@ func TestShardSet(t *testing.T) {
 		e.ws.initialize()
 		e.ws.run()
 
-		actualNotExpired, actualExpired := len(e.s.elements)-e.s.q.size(), e.s.q.size()
+		actualNotExpired, actualExpired := e.s.size()-e.s.q.size(), e.s.q.size()
 		t.Logf("not-expired/actual-not-expired (%d/%d) expired/actual-expired (%d/%d)",
 			e.notExpired, actualNotExpired, e.expired, actualExpired)
 
@@ -395,18 +395,18 @@ func TestShardClean(t *testing.T) {
 			}
 		}
 
-		assert.Equal(t, e.s.q.size(), 2*(len(e.s.elements)-e.n))
+		assert.Equal(t, e.s.q.size(), 2*(e.s.size()-e.n))
 
 		for part := 1; part < e.parts; part++ {
 			time.Sleep(e.lifetime)
 			cleaned := e.s.clean()
 
 			t.Logf("rest (%d) indices (%d) cleaned (%d)",
-				len(e.s.elements), e.s.q.size(), cleaned)
+				e.s.size(), e.s.q.size(), cleaned)
 
 			assert.Equal(t, cleaned, e.n)
-			assert.Equal(t, e.s.q.size(), len(e.s.elements)-e.n)
-			assert.Equal(t, len(e.s.elements), (e.parts-part)*e.n)
+			assert.Equal(t, e.s.q.size(), e.s.size()-e.n)
+			assert.Equal(t, e.s.size(), (e.parts-part)*e.n)
 		}
 
 		for part := 0; part < e.parts; part++ {
@@ -446,8 +446,8 @@ func TestShardClose(t *testing.T) {
 			e.s.set(fmt.Sprintf("%d", i), i, e.lifetime)
 		}
 
-		size, qsize := len(e.s.elements), e.s.q.size()
-		assert.Equal(t, len(e.s.elements), e.n)
+		size, qsize := e.s.size(), e.s.q.size()
+		assert.Equal(t, e.s.size(), e.n)
 		if e.lifetime != 0 {
 			assert.Equal(t, e.s.q.size(), e.n)
 		}
@@ -460,9 +460,9 @@ func TestShardClose(t *testing.T) {
 		e.s.close()
 
 		t.Logf("size/original-size (%d/%d) queue-size/original-queue-size (%d/%d) finalize-count (%d)",
-			size, len(e.s.elements), qsize, e.s.q.size(), fn)
+			size, e.s.size(), qsize, e.s.q.size(), fn)
 		assert.Equal(t, fn, e.n)
-		assert.Equal(t, len(e.s.elements), 0)
+		assert.Equal(t, e.s.size(), 0)
 		assert.Equal(t, e.s.q.size(), 0)
 	}
 }
@@ -527,7 +527,7 @@ func TestCacheNewAndClose(t *testing.T) {
 				assert.T(t, s != nil)
 				assert.Equal(t, s.finalizer == nil, e.c.Finalizer == nil)
 				s.set("hello", "world", time.Hour)
-				assert.Equal(t, len(s.elements), 1)
+				assert.Equal(t, s.size(), 1)
 				assert.Equal(t, s.q.size(), 1)
 			}
 
@@ -536,7 +536,7 @@ func TestCacheNewAndClose(t *testing.T) {
 			for _, s := range c.shards {
 				assert.T(t, s.elements != nil)
 				assert.T(t, s.q != nil)
-				assert.Equal(t, len(s.elements), 0)
+				assert.Equal(t, s.size(), 0)
 				assert.Equal(t, s.q.size(), 0)
 			}
 		} else {
