@@ -138,6 +138,16 @@ func (c *Cache) Del(k string) {
 	c.shards[fnv32a(k)%c.n].del(k)
 }
 
+// Returns the number of elements in the cache. This may include expired elements
+// which have not yet been cleaned up.
+func (c *Cache) Size() int {
+	n := 0
+	for _, s := range c.shards {
+		n += s.size()
+	}
+	return n
+}
+
 // Close the cache. All elements in the cache will be deleted. If the Finalizer field
 // of the cache has been set, it will be applied for the all elements in the cache. You
 // shouldn't use this cache anymore after this method has been called.
