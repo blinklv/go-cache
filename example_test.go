@@ -35,6 +35,35 @@ func Example() {
 	// I get: <nil>
 }
 
+func ExampleNew() {
+	c, _ := cache.New(&cache.Config{
+		ShardNumber:   128,
+		CleanInterval: 30 * time.Minute,
+		Finalizer: func(key string, value interface{}) {
+			log.Printf("%s:%v", key, value)
+		},
+	})
+	c.Close()
+	// Output:
+}
+
+// The following three ways of creating a cache using default configuration
+// have the same effect.
+func ExampleNew_default() {
+	c, _ := cache.New(&cache.Config{
+		ShardNumber:   cache.DefaultShardNumber,
+		CleanInterval: cache.DefaultCleanInterval,
+	})
+	c.Close()
+
+	c, _ = cache.New(&cache.Config{})
+	c.Close()
+
+	c, _ = cache.New(nil)
+	c.Close()
+	// Output:
+}
+
 // The following is a black box test for this package.
 func TestCache(t *testing.T) {
 	if testing.Short() {
