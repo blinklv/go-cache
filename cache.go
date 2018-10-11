@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-10-10
+// Last Change: 2018-10-11
 
 // A concurrent-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
@@ -21,12 +21,16 @@ import (
 type Config struct {
 	// The elements are not stored in a single pool but distributed in many
 	// separate regions, which called shard. ShardNumber specifies how many
-	// shards there are. Of course, there must exist one shard at least.
+	// shards there are. Of course, there must exist one shard at least. If
+	// you don't specify this field (its value is zero), DefaultShardNumber
+	// will be used.
 	ShardNumber int
 
 	// Cache will clean expired elements periodically, this parameter controls
 	// the frequency of cleaning operations. It can't be less than 1 min in this
-	// version; otherwise, many CPU cycles are occupied by the 'clean' task.
+	// version; otherwise, many CPU cycles are occupied by the 'clean' task. If
+	// you don't specify this field (its value is zero), DefaultCleanInterval
+	// will be used.
 	CleanInterval time.Duration
 
 	// When an element is out of date, it will be cleand sliently. But maybe an
@@ -37,6 +41,9 @@ type Config struct {
 }
 
 const (
+	DefaultShardNumber   = 32
+	DefaultCleanInterval = time.Hour
+
 	minShardNumber   = 1
 	minCleanInterval = time.Minute
 )
