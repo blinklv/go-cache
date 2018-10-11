@@ -526,11 +526,14 @@ func TestCacheNewAndClose(t *testing.T) {
 		ok bool
 	}{
 		{nil, true},
+		{&Config{}, true},
+		{&Config{ShardNumber: 0, CleanInterval: 10 * time.Minute}, true},
+		{&Config{ShardNumber: 32, CleanInterval: 0}, true},
+		{&Config{ShardNumber: 32, CleanInterval: 0, Finalizer: finalizer}, true},
 		{&Config{ShardNumber: 32, CleanInterval: 30 * time.Minute}, true},
 		{&Config{ShardNumber: minShardNumber, CleanInterval: 10 * time.Minute, Finalizer: finalizer}, true},
 		{&Config{ShardNumber: 16, CleanInterval: minCleanInterval}, true},
 		{&Config{ShardNumber: minShardNumber, CleanInterval: minCleanInterval, Finalizer: finalizer}, true},
-		{&Config{ShardNumber: 0, CleanInterval: 10 * time.Minute}, false},
 		{&Config{ShardNumber: 10, CleanInterval: 30 * time.Second}, false},
 		{&Config{ShardNumber: -1, CleanInterval: 30 * time.Second}, false},
 	}
@@ -538,10 +541,7 @@ func TestCacheNewAndClose(t *testing.T) {
 	for _, e := range elements {
 		c, err := New(e.c)
 		if e.ok {
-			if e.c == nil {
-				e.c = &Config{ShardNumber: 32, CleanInterval: time.Hour}
-			}
-
+			e.c, _ = e.c.validate()
 			assert.T(t, c != nil)
 			assert.Equal(t, err, nil)
 			assert.Equal(t, int(c.n), e.c.ShardNumber)
@@ -552,7 +552,10 @@ func TestCacheNewAndClose(t *testing.T) {
 
 			for _, s := range c.shards {
 				assert.T(t, s != nil)
-				assert.Equal(t, s.finalizer == nil, e.c.Finalizer == nil)
+				assert.Equal(t,
+					reflect.ValueOf(s.finalizer).Pointer(),
+					reflect.ValueOf(e.c.Finalizer).Pointer(),
+				)
 				s.set("hello", "world", time.Hour)
 				assert.Equal(t, s.size(), 1)
 				assert.Equal(t, s.q.size(), 1)
