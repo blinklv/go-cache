@@ -48,18 +48,38 @@ const (
 	minCleanInterval = time.Minute
 )
 
-// Check whether the configuration is right. If it's invalid, return an error.
-func (cfg *Config) validate() error {
-	if cfg.ShardNumber < minShardNumber {
-		return fmt.Errorf("the number of shards (%d) can't be less than %d",
+// Check whether the configuration is right. If it's invalid, returns a non-nil
+// error. Otherwise, returns a new Config instance which contains final results.
+// Some defualt values will be used when the original Config is nil or you don't
+// specify fields.
+func (cfg *Config) validate() (*Config, error) {
+	result := &Config{
+		ShardNumber:   DefaultShardNumber,
+		CleanInterval: DefaultCleanInterval,
+	}
+	if cfg == nil {
+		return result, nil
+	}
+
+	// NOTE: We won't update the original Config instance when it's nil in this
+	// method. Otherwise, users might be puzzled when they use it elsewhere after
+	// this method has been called.
+	if cfg.ShardNumber >= minShardNumber {
+		result.ShardNumber = cfg.ShardNumber
+	} else if cfg.ShardNumber != 0 {
+		return nil, fmt.Errorf("the number of shards (%d) can't be less than %d",
 			cfg.ShardNumber, minShardNumber)
 	}
 
-	if cfg.CleanInterval < minCleanInterval {
-		return fmt.Errorf("the clean interval (%s) can't be less than %s",
+	if cfg.CleanInterval >= minCleanInterval {
+		result.CleanInterval = cfg.CleanInterval
+	} else if cfg.CleanInterval != 0 {
+		return nil, fmt.Errorf("the clean interval (%s) can't be less than %s",
 			cfg.CleanInterval, minCleanInterval)
 	}
-	return nil
+
+	result.Finalizer = cfg.Finalizer
+	return result, nil
 }
 
 // Cache is a concurrent-safe cache for applications running on a single machine.
@@ -75,19 +95,15 @@ type Cache struct {
 // nil; like the number of shards must be greater than or equal to 1 and the clean
 // interval can't be less than 1 minute. If it's nil, the underlying shard number and
 // clean interval will be set to 32 and 1 hour respectively by default.
-func New(cfg *Config) (*Cache, error) {
-	n, interval, finalizer := 32, time.Hour, (func(string, interface{}))(nil)
-	if cfg != nil {
-		if err := cfg.validate(); err != nil {
-			return nil, err
-		}
-		n, interval, finalizer = cfg.ShardNumber, cfg.CleanInterval, cfg.Finalizer
+func New(cfg *Config) (c *Cache, err error) {
+	if cfg, err = cfg.validate(); err != nil {
+		return nil, err
 	}
 
-	c := &Cache{
-		shards:   make([]*shard, n),
-		n:        uint32(n),
-		interval: interval,
+	c = &Cache{
+		shards:   make([]*shard, cfg.ShardNumber),
+		n:        uint32(cfg.ShardNumber),
+		interval: cfg.CleanInterval,
 		exit:     make(chan chan struct{}),
 		exitOnce: &sync.Once{},
 	}
@@ -95,7 +111,7 @@ func New(cfg *Config) (*Cache, error) {
 	for i, _ := range c.shards {
 		c.shards[i] = &shard{
 			elements:  make(map[string]element),
-			finalizer: finalizer,
+			finalizer: cfg.Finalizer,
 			q:         &queue{},
 		}
 	}
