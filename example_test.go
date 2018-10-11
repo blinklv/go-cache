@@ -15,6 +15,26 @@ import (
 	"time"
 )
 
+// The following example illustrates how to use this package.
+func Example() {
+	c, err := cache.New(&cache.Config{
+		ShardNumber:   128,
+		CleanInterval: 30 * time.Minute,
+	})
+	if err != nil {
+		log.Fatalf("create cache failed (%s)", err)
+	}
+	defer c.Close()
+
+	c.ESet("hello", "world", 5*time.Second)
+	fmt.Printf("I get: %v\n", c.Get("hello"))
+	time.Sleep(5 * time.Second)
+	fmt.Printf("I get: %v\n", c.Get("hello"))
+	// Output:
+	// I get: world
+	// I get: <nil>
+}
+
 // The following is a black box test for this package.
 func TestCache(t *testing.T) {
 	if testing.Short() {
