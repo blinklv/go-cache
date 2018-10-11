@@ -3,7 +3,7 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-29
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-10-10
+// Last Change: 2018-10-11
 
 package cache
 
@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/bmizerany/assert"
 	"math/rand"
+	"reflect"
 	"runtime"
 	"strconv"
 	"sync"
@@ -468,26 +469,52 @@ func TestShardClose(t *testing.T) {
 }
 
 func TestConfigValidate(t *testing.T) {
+	dummyFinalizer := func(string, interface{}) {}
 	elements := []struct {
 		c  *Config
 		ok bool
 	}{
+		{nil, true},
+		{&Config{}, true},
+		{&Config{CleanInterval: 30 * time.Minute}, true},
+		{&Config{ShardNumber: 32, Finalizer: dummyFinalizer}, true},
 		{&Config{ShardNumber: 32, CleanInterval: 30 * time.Minute}, true},
 		{&Config{ShardNumber: minShardNumber, CleanInterval: 30 * time.Minute}, true},
-		{&Config{ShardNumber: 32, CleanInterval: minCleanInterval}, true},
+		{&Config{ShardNumber: 32, CleanInterval: minCleanInterval, Finalizer: dummyFinalizer}, true},
 		{&Config{ShardNumber: minShardNumber, CleanInterval: minCleanInterval}, true},
-		{&Config{ShardNumber: 0, CleanInterval: 10 * time.Minute}, false},
+		{&Config{ShardNumber: -1, CleanInterval: 10 * time.Minute}, false},
 		{&Config{ShardNumber: 10, CleanInterval: 30 * time.Second}, false},
 		{&Config{ShardNumber: -1, CleanInterval: 30 * time.Second}, false},
 	}
 
 	for _, e := range elements {
-		err := e.c.validate()
+		result, err := e.c.validate()
 		if !e.ok {
 			t.Logf("configuration is invalid: %s", err)
 			assert.NotEqual(t, err, nil)
 		} else {
+			assert.NotEqual(t, result, nil)
 			assert.Equal(t, err, nil)
+
+			t.Logf("result configuration: %#v", *result)
+			if e.c == nil || e.c.ShardNumber == 0 {
+				assert.Equal(t, result.ShardNumber, DefaultShardNumber)
+			} else {
+				assert.Equal(t, result.ShardNumber, e.c.ShardNumber)
+			}
+
+			if e.c == nil || e.c.CleanInterval == 0 {
+				assert.Equal(t, result.CleanInterval, DefaultCleanInterval)
+			} else {
+				assert.Equal(t, result.CleanInterval, e.c.CleanInterval)
+			}
+
+			if e.c != nil {
+				f1, f2 := reflect.ValueOf(result.Finalizer), reflect.ValueOf(e.c.Finalizer)
+				assert.Equal(t, f1.Pointer(), f2.Pointer())
+			} else {
+				assert.Equal(t, result.Finalizer, (func(string, interface{}))(nil))
+			}
 		}
 	}
 }
