@@ -41,7 +41,10 @@ type Config struct {
 }
 
 const (
-	DefaultShardNumber   = 32
+	// DefaultShardNumber is the default ShardNumber used by creating Cache.
+	DefaultShardNumber = 32
+
+	// DefaultCleanInterval is the default CleanInterval used by creating Cache.
 	DefaultCleanInterval = time.Hour
 
 	minShardNumber   = 1
@@ -91,10 +94,12 @@ type Cache struct {
 	exitOnce *sync.Once
 }
 
-// Create a Cache instance. The configuration parameter should be valid when it's not
-// nil; like the number of shards must be greater than or equal to 1 and the clean
-// interval can't be less than 1 minute. If it's nil, the underlying shard number and
-// clean interval will be set to 32 and 1 hour respectively by default.
+// Create a Cache instance. The configuration parameter should be valid when it's
+// not nil; like the number of shards must be greater than or equal to 1 and the
+// clean interval can't be less than 1 minute. If you don't specify ShardNumber
+// field or CleanInterval field, DefaultShardNumber and DefaultCleanInterval will
+// be used respectively by default. These two default values are also used when
+// the configuration parameter is nil.
 func New(cfg *Config) (c *Cache, err error) {
 	if cfg, err = cfg.validate(); err != nil {
 		return nil, err
