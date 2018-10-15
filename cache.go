@@ -3,9 +3,9 @@
 // Author: blinklv <blinklv@icloud.com>
 // Create Time: 2018-08-22
 // Maintainer: blinklv <blinklv@icloud.com>
-// Last Change: 2018-10-11
+// Last Change: 2018-10-15
 
-// A concurrent-safe cache for applications running on a single machine. It supports
+// A concurrency-safe cache for applications running on a single machine. It supports
 // set operation with expiration. Elements are not stored in a single pool (map) but
 // distributed in many separate regions, which called shard. This design allows us
 // to perform some massive operations (like cleaning expired elements) progressively.
@@ -85,7 +85,7 @@ func (cfg *Config) validate() (*Config, error) {
 	return result, nil
 }
 
-// Cache is a concurrent-safe cache for applications running on a single machine.
+// Cache is a concurrency-safe cache for applications running on a single machine.
 type Cache struct {
 	shards   []*shard
 	n        uint32

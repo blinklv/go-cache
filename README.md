@@ -4,7 +4,7 @@
 [![GoDoc](https://godoc.org/github.com/blinklv/go-cache?status.svg)](https://godoc.org/github.com/blinklv/go-cache)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-A concurrent-safe cache for applications running on a single machine in [Go][]. It supports set operation with expiration. Elements are not stored in a single pool ([map][]) but distributed in many separate regions, which called shard. This design allows us to improve concurrency and perform some massive operations (like *cleaning expired elements*)progressively.
+A concurrency-safe cache for applications running on a single machine in [Go][]. It supports set operation with expiration. Elements are not stored in a single pool ([map][]) but distributed in many separate regions, which called shard. This design allows us to improve concurrency and perform some massive operations (like *cleaning expired elements*)progressively.
 
 ## Installation
 
