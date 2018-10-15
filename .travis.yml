@@ -1,0 +1,8 @@
+language: go
+go:
+    - 1.x
+sudo: false
+go_import_path: github.com/blinklv/go-cache
+notifications:
+    email: false
+script: go test -short ./
