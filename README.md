@@ -1,5 +1,6 @@
 # go-cache
 
+[![Build Status](https://travis-ci.org/blinklv/go-cache.svg?branch=master)](https://travis-ci.org/blinklv/go-cache)
 [![GoDoc](https://godoc.org/github.com/blinklv/go-cache?status.svg)](https://godoc.org/github.com/blinklv/go-cache)
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
