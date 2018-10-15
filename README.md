@@ -74,6 +74,10 @@ In the above picture, blue rectangles and other color ones usually represent ope
 3. There're two primary components in a shard, **map**, and **queue**. The former is a raw [map][] of [Go][], which can do the mapping `key -> {value, lifetime}`. Each element will have a backup on this map. The latter is a custom queue, the item of which likes `{key, lifetime}`. An element will push to it only when its lifetime is not zero. The reason why this struct exists you can see the next step. So when we store the element to the shard, it must be written to the map and might be pushed to the queue.
 4. Let's we talk about something that will happen when your element expired. You won't get it, of course, this is why we set its expiration. But it doesn't mean your element has been removed from the cache (or shard-x). After a while, *cleaner* begins running. It's a goroutine which periodically cleans expired elements of the cache. If it checks all elements whether they expired by using [for][] statement with a [range][] clause iterates through all entries of the map, this causes the shard can't be accessed by other operations for a long time, because the shard is protected by the [read-write-lock][] and we usually don't interrupt this for-loop. So the **queue** component is included to the shard. It has two primary advantage; the first is we don't need to care about permanent elements; the second is we can iterate expired elements progressively. But it also consumes more memory and CPU cycles. Pop indices from the queue one by one, delete corresponded element when we find it expired. 
 
+## License 
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details
+
 [Go]: https://golang.org/
 [map]: https://golang.org/ref/spec#Map_types
 [string]: https://golang.org/ref/spec#String_types
